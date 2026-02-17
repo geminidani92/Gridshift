@@ -29,17 +29,7 @@ No build step needed. No Node.js. No bundler. Just static files.
 
 ## Setup (Local)
 
-Just open `index.html` in a browser. 
-
-**Note:** Due to ES modules and CORS, you need a local server:
-```bash
-# Python 3
-python -m http.server 8000
-
-# Or Node.js (if available)
-npx serve .
-```
-Then open `http://localhost:8000`
+Just open `index.html` in a browser — it works directly, no server needed.
 
 ## Project Structure
 
@@ -77,12 +67,19 @@ gridshift/
 │       └── Helpers.js      ← Utility functions
 ```
 
+## Project Architecture
+
+The project has two layers:
+
+- **`src/`** — Source code organized in modules (objects, scenes, systems, ui, utils). This is where you develop and read the code. Each file has a single responsibility.
+- **`game.js`** — Production bundle that runs in the browser. This is built from the src/ modules. When you make changes in src/, update game.js accordingly.
+
 ## Tech Stack
 
-- **Phaser 3.80.1** via CDN (ESM build)
-- **ES Modules** (native browser, no bundler)
+- **Phaser 3.80.1** via CDN
 - All visuals drawn with Phaser Graphics (no external images)
 - Responsive with Scale.FIT
+- No bundler needed, no Node.js required
 
 ## For AI Agents
 
@@ -92,4 +89,3 @@ This project is designed as a template for the AI Game Factory system. Agents ca
 - Add new enemy types in `src/objects/Enemy.js`
 - Extend the map system in `src/systems/MapGenerator.js`
 - Add new scenes in `src/scenes/`
-
