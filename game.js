@@ -644,12 +644,29 @@ class MapScene extends Phaser.Scene {
     const cx = CONFIG.GAME_WIDTH / 2;
     const { nodes, rows } = this.mapData;
 
-    this.add.text(cx, 24, 'CHOOSE YOUR PATH', { fontFamily: 'monospace', fontSize: '16px', color: '#7c3aed' }).setOrigin(0.5);
-    this.add.text(16, 16, `SCORE: ${this.score}`, { fontFamily: 'monospace', fontSize: '12px', color: '#f4f4f8' });
+    // Header
+    this.add.text(cx, 18, 'CHOOSE YOUR PATH', { fontFamily: 'monospace', fontSize: '18px', color: '#7c3aed', fontStyle: 'bold' }).setOrigin(0.5);
+    this.add.text(16, 14, `SCORE: ${this.score}`, { fontFamily: 'monospace', fontSize: '13px', color: '#f4f4f8' });
 
-    const mapTop = 70, mapBottom = CONFIG.GAME_HEIGHT - 40;
+    // Legend (top right)
+    const legendItems = [
+      { label: 'P  Puzzle', color: '#7c3aed' },
+      { label: 'E  Elite', color: '#e94560' },
+      { label: '?  Chest', color: '#f59e0b' },
+      { label: 'R  Rest', color: '#22d3ee' },
+      { label: 'B  BOSS', color: '#dc2626' },
+    ];
+    const lx = CONFIG.GAME_WIDTH - 16;
+    legendItems.forEach((item, i) => {
+      this.add.text(lx, 8 + i * 16, item.label, {
+        fontFamily: 'monospace', fontSize: '10px', color: item.color,
+      }).setOrigin(1, 0);
+    });
+
+    // Map layout
+    const mapTop = 95, mapBottom = CONFIG.GAME_HEIGHT - 55;
     const rowH = (mapBottom - mapTop) / (rows.length - 1 || 1);
-    const mL = 100, mR = CONFIG.GAME_WIDTH - 100;
+    const mL = 80, mR = CONFIG.GAME_WIDTH - 80;
 
     const pos = {};
     for (const n of nodes) {
@@ -658,17 +675,17 @@ class MapScene extends Phaser.Scene {
       pos[n.id] = { x: n.colCount === 1 ? cx : mL + n.col * cw, y: ry };
     }
 
-    // Lines
+    // Connection lines
     const lineG = this.add.graphics();
     for (const n of nodes) {
       const from = pos[n.id];
       for (const cid of n.connections) {
-        lineG.lineStyle(2, CONFIG.COLORS.MAP_PATH, 0.4);
+        lineG.lineStyle(2, CONFIG.COLORS.MAP_PATH, 0.35);
         lineG.lineBetween(from.x, from.y, pos[cid].x, pos[cid].y);
       }
     }
 
-    // Selectable
+    // Selectable nodes
     let selectable = new Set();
     if (this.currentRow === -1) selectable = new Set(rows[0]);
     else if (this.currentNodeId !== null) selectable = new Set(nodes[this.currentNodeId].connections);
@@ -679,39 +696,70 @@ class MapScene extends Phaser.Scene {
       puzzle: CONFIG.COLORS.NODE_PUZZLE, elite: CONFIG.COLORS.NODE_ELITE,
       chest: CONFIG.COLORS.NODE_CHEST, campfire: CONFIG.COLORS.NODE_CAMPFIRE, boss: CONFIG.COLORS.NODE_BOSS,
     };
-    const nodeIcons = { puzzle: '⬡', elite: '☠', chest: '◆', campfire: '♨', boss: '★' };
+    const nodeLabels = { puzzle: 'P', elite: 'E', chest: '?', campfire: 'R', boss: 'B' };
+    const nodeNames = { puzzle: 'PUZZLE', elite: 'ELITE', chest: 'CHEST', campfire: 'REST', boss: 'BOSS' };
 
     for (const n of nodes) {
       const p = pos[n.id];
       const sel = selectable.has(n.id);
       const color = nodeColors[n.type] || 0xffffff;
-      const sz = n.type === 'boss' ? 24 : 18;
+      const sz = n.type === 'boss' ? 26 : 20;
 
       const g = this.add.graphics();
+
       if (n.completed) {
-        g.fillStyle(color, 0.2); g.fillCircle(p.x, p.y, sz);
-        g.lineStyle(2, color, 0.4); g.strokeCircle(p.x, p.y, sz);
+        // Completed: dim with checkmark
+        g.fillStyle(color, 0.15); g.fillCircle(p.x, p.y, sz);
+        g.lineStyle(2, color, 0.3); g.strokeCircle(p.x, p.y, sz);
+        this.add.text(p.x, p.y, '✓', {
+          fontFamily: 'monospace', fontSize: '14px', color: '#555570',
+        }).setOrigin(0.5).setDepth(15);
+
       } else if (sel) {
-        g.fillStyle(color, 0.15); g.fillCircle(p.x, p.y, sz + 8);
-        g.fillStyle(color, 0.9); g.fillCircle(p.x, p.y, sz);
-        g.lineStyle(2, 0xffffff, 0.5); g.strokeCircle(p.x, p.y, sz);
-        this.tweens.add({ targets: g, alpha: 0.7, duration: 600, yoyo: true, repeat: -1 });
-      } else {
-        g.fillStyle(color, 0.5); g.fillCircle(p.x, p.y, sz);
-      }
+        // SELECTABLE: aggressive glow
+        // Outer pulse ring
+        const ring = this.add.graphics();
+        ring.lineStyle(3, color, 0.8);
+        ring.strokeCircle(p.x, p.y, sz + 14);
+        this.tweens.add({ targets: ring, alpha: 0.2, scaleX: 1.15, scaleY: 1.15, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-      this.add.text(p.x, p.y, nodeIcons[n.type] || '?', {
-        fontFamily: 'monospace', fontSize: n.type === 'boss' ? '20px' : '14px', color: '#ffffff'
-      }).setOrigin(0.5).setDepth(15);
+        // Bright glow
+        g.fillStyle(color, 0.3); g.fillCircle(p.x, p.y, sz + 10);
+        g.fillStyle(color, 1); g.fillCircle(p.x, p.y, sz);
+        g.lineStyle(3, 0xffffff, 0.8); g.strokeCircle(p.x, p.y, sz);
 
-      if (sel) {
-        const hit = this.add.circle(p.x, p.y, sz + 8).setInteractive({ useHandCursor: true }).setAlpha(0.01);
+        // Pulse the node itself
+        this.tweens.add({ targets: g, alpha: 0.6, duration: 400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+        // Label
+        this.add.text(p.x, p.y - 1, nodeLabels[n.type] || '?', {
+          fontFamily: 'monospace', fontSize: n.type === 'boss' ? '22px' : '16px', color: '#ffffff', fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(15);
+
+        // Type name below node
+        this.add.text(p.x, p.y + sz + 8, nodeNames[n.type] || '', {
+          fontFamily: 'monospace', fontSize: '9px', color: '#ffffff',
+        }).setOrigin(0.5).setDepth(15);
+
+        // Big hit area
+        const hit = this.add.circle(p.x, p.y, sz + 16).setInteractive({ useHandCursor: true }).setAlpha(0.01);
         hit.on('pointerdown', () => this.selectNode(n));
+
+      } else {
+        // Locked: dim
+        g.fillStyle(color, 0.35); g.fillCircle(p.x, p.y, sz);
+        this.add.text(p.x, p.y - 1, nodeLabels[n.type] || '?', {
+          fontFamily: 'monospace', fontSize: n.type === 'boss' ? '18px' : '13px', color: '#ffffff', fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(15).setAlpha(0.5);
       }
     }
 
-    this.add.text(cx, CONFIG.GAME_HEIGHT - 14, 'Click a glowing node to continue', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#3a3a50'
+    // Help text (big and visible)
+    const helpBg = this.add.graphics();
+    helpBg.fillStyle(0x7c3aed, 0.15);
+    helpBg.fillRoundedRect(cx - 160, CONFIG.GAME_HEIGHT - 48, 320, 28, 6);
+    this.add.text(cx, CONFIG.GAME_HEIGHT - 34, 'CLICK a glowing node to start', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#a78bfa', fontStyle: 'bold',
     }).setOrigin(0.5);
   }
 
